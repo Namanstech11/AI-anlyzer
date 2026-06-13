@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEET OMR Auto-Calculator</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f5f6fa;--surface:#ffffff;--border:#e2e6f0;--text:#1a1d2e;--muted:#6b7280;--accent:#4f46e5;--accent-light:#eef2ff;--success:#059669;--success-light:#d1fae5;--danger:#dc2626;--danger-light:#fee2e2;--warn:#d97706;--warn-light:#fef3c7;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,0.08),0 4px 12px rgba(0,0,0,0.05)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:0 0 2rem}
+.main{max-width:800px;margin:0 auto;padding:16px 12px}
+h1{font-size:1.2rem;font-weight:700;color:var(--accent);margin-bottom:4px}
+.subtitle{font-size:0.8rem;color:var(--muted);margin-bottom:1.2rem}
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem}
+.upload-box{background:var(--surface);border:2px dashed var(--border);border-radius:var(--radius);padding:1.2rem 1rem;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;position:relative;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.upload-box:hover{border-color:var(--accent);background:var(--accent-light)}
+.upload-box.has-file{border-color:#6ee7b7;background:var(--success-light);border-style:solid}
+.upload-box input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:2rem;margin-bottom:6px}
+.upload-label{font-size:0.82rem;font-weight:700;color:var(--accent);margin-bottom:3px}
+.upload-sub{font-size:0.7rem;color:var(--muted)}
+.upload-box.has-file .upload-label{color:var(--success)}
+.upload-box.has-file .upload-sub{color:#065f46}
+.preview-img{max-width:100%;max-height:70px;border-radius:6px;margin-top:8px;object-fit:contain}
+.btn-analyze{width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:0.92rem;font-weight:700;cursor:pointer;transition:background 0.15s;margin-bottom:1rem;letter-spacing:0.02em}
+.btn-analyze:hover{background:#4338ca}
+.btn-analyze:disabled{background:#a5b4fc;cursor:not-allowed}
+.status-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.2rem;margin-bottom:1rem;font-size:0.82rem;color:var(--muted);min-height:48px;display:flex;align-items:center;gap:10px}
+.status-box.running{border-color:#818cf8;color:var(--accent);background:#eef2ff}
+.status-box.done{border-color:#6ee7b7;color:var(--success);background:var(--success-light)}
+.status-box.error{border-color:#fca5a5;color:var(--danger);background:var(--danger-light)}
+.spinner{width:18px;height:18px;border:2px solid #c7d2fe;border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.top-banner{background:#4f46e5;border-top:4px solid #2dd4bf;border-radius:var(--radius) var(--radius) 0 0;box-shadow:var(--shadow)}
+.banner-cols{display:grid;grid-template-columns:38px 1fr 38px 1fr 38px 1fr 38px 1fr;padding:0 8px}
+.bcol{text-align:center;padding:10px 3px;font-size:0.82rem;font-weight:700;color:#fff}
+.bcol.dim{font-size:0.68rem;color:#c7d2fe;font-weight:600}
+.scores-bar{background:#3730a3;padding:0.45rem 1rem;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;border-radius:0 0 var(--radius) var(--radius);margin-bottom:1rem}
+.score-pill{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:3px 12px;font-size:0.76rem;font-weight:600;color:#fff;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.score-pill .label{font-weight:400;color:#c7d2fe;font-size:0.7rem}
+.score-pill.grand{background:#2dd4bf;color:#134e4a;border-color:#2dd4bf;font-size:0.8rem;padding:4px 16px}
+.score-pill.grand .label{color:#0f766e}
+.legend{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem 1rem;margin-bottom:1rem;display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:0.78rem}
+.legend strong{color:var(--muted);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;margin-right:4px}
+.leg-item{display:flex;align-items:center;gap:5px}
+.leg-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-weight:600;font-size:0.75rem}
+.leg-blank{background:var(--success-light);color:var(--success)}
+.leg-w{background:var(--danger-light);color:var(--danger)}
+.leg-l{background:var(--warn-light);color:var(--warn)}
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);overflow-x:auto;margin-bottom:1rem}
+table{width:100%;border-collapse:collapse;min-width:500px;table-layout:fixed}
+thead tr{background:#f0f2f8}
+thead th{padding:8px 3px;font-size:0.72rem;font-weight:700;color:var(--accent);text-align:center;border-bottom:2px solid var(--border)}
+thead th.q-col{width:40px;color:var(--muted);font-size:0.68rem;font-weight:600}
+tbody tr{background:#fff}
+tbody tr:hover{background:#eef2ff}
+td{padding:4px 2px;text-align:center;border-bottom:1px solid #f0f2f8;vertical-align:middle}
+td.q-col{font-size:0.7rem;color:var(--muted);font-weight:700;width:40px;background:#fafbff;border-right:1px solid #eef0f8}
+input.cell{width:100%;max-width:74px;text-align:center;font-size:0.88rem;font-weight:600;padding:5px 3px;border:1.5px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);transition:border-color 0.15s,background 0.15s;outline:none;text-transform:uppercase}
+input.cell:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(79,70,229,0.15)}
+input.cell.blank{background:var(--success-light);border-color:#6ee7b7;color:var(--success)}
+input.cell.wrong{background:var(--danger-light);border-color:#fca5a5;color:var(--danger)}
+input.cell.lost{background:var(--warn-light);border-color:#fcd34d;color:var(--warn)}
+input.cell.invalid{background:#fff1f2;border-color:#fb7185;color:#be123c}
+tfoot tr{background:#f0f2f8}
+tfoot td{padding:10px 4px;font-weight:700;font-size:0.82rem;border-top:2px solid var(--border);color:var(--accent);border-bottom:none;text-align:center}
+tfoot td .score-out{font-size:0.68rem;color:var(--muted);font-weight:400}
+.summary{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;box-shadow:var(--shadow)}
+.summary h2{font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:1rem}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1rem}
+.sum-card{background:var(--accent-light);border:1px solid #c7d2fe;border-radius:8px;padding:12px 14px;text-align:center}
+.sum-card .sec-label{font-size:0.72rem;color:#6366f1;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px}
+.sum-card .sec-score{font-size:1.4rem;font-weight:700;color:var(--accent);line-height:1}
+.sum-card .sec-out{font-size:0.72rem;color:#818cf8}
+.sec-breakdown{font-size:0.7rem;margin-top:5px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;font-weight:600}
+.grand-card{background:var(--accent);border-radius:8px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.grand-card .gl{color:#c7d2fe;font-size:0.82rem;font-weight:600}
+.grand-card .gv{color:#fff;font-size:1.8rem;font-weight:800;line-height:1}
+.grand-card .go{color:#a5b4fc;font-size:0.75rem}
+.bar-wrap{margin-top:6px}
+.bar-bg{background:#c7d2fe;border-radius:4px;height:6px;overflow:hidden}
+.bar-fill{background:#fff;height:100%;border-radius:4px;transition:width 0.3s ease}
+.actions{display:flex;gap:10px;margin-top:1rem;flex-wrap:wrap;justify-content:flex-end}
+button.btn{padding:8px 18px;border-radius:7px;font-size:0.82rem;font-weight:600;cursor:pointer;border:1.5px solid;transition:all 0.15s}
+button.btn-ghost{background:transparent;border-color:var(--border);color:var(--muted)}
+button.btn-ghost:hover{background:var(--bg)}
+@media(max-width:520px){.upload-grid{grid-template-columns:1fr}.banner-cols{grid-template-columns:30px 1fr 30px 1fr 30px 1fr 30px 1fr}}
+</style>
+</head>
+<body>
+<div class="main">
+  <h1>🧬 NEET OMR Auto-Calculator</h1>
+  <p class="subtitle">Upload your scanned OMR sheet + answer key — AI reads and calculates your marks automatically.</p>
+
+  <div class="upload-grid">
+    <div class="upload-box" id="omrBox">
+      <input type="file" accept="image/*" id="omrInput" onchange="handleFile('omr',this)">
+      <div class="upload-icon">📄</div>
+      <div class="upload-label">OMR Sheet</div>
+      <div class="upload-sub" id="omrSub">Click to upload scanned OMR</div>
+      <img id="omrPreview" class="preview-img" style="display:none">
+    </div>
+    <div class="upload-box" id="keyBox">
+      <input type="file" accept="image/*" id="keyInput" onchange="handleFile('key',this)">
+      <div class="upload-icon">🗝️</div>
+      <div class="upload-label">Answer Key</div>
+      <div class="upload-sub" id="keySub">Click to upload answer key</div>
+      <img id="keyPreview" class="preview-img" style="display:none">
+    </div>
+  </div>
+
+  <button class="btn-analyze" id="analyzeBtn" onclick="analyze()" disabled>Upload both images to analyze</button>
+
+  <div class="status-box" id="statusBox">⏳ Waiting for images...</div>
+
+  <div class="top-banner">
+    <div class="banner-cols">
+      <div class="bcol dim">Q</div><div class="bcol">Physics</div>
+      <div class="bcol dim">Q</div><div class="bcol">Chemistry</div>
+      <div class="bcol dim">Q</div><div class="bcol">Botany</div>
+      <div class="bcol dim">Q</div><div class="bcol">Zoology</div>
+    </div>
+  </div>
+  <div class="scores-bar">
+    <div class="score-pill"><span class="label">Physics&nbsp;</span><span id="pill0">—</span><span style="color:#a5b4fc;font-size:0.66rem">/180</span></div>
+    <div class="score-pill"><span class="label">Chemistry&nbsp;</span><span id="pill1">—</span><span style="color:#a5b4fc;font-size:0.66rem">/180</span></div>
+    <div class="score-pill"><span class="label">Botany&nbsp;</span><span id="pill2">—</span><span style="color:#a5b4fc;font-size:0.66rem">/180</span></div>
+    <div class="score-pill"><span class="label">Zoology&nbsp;</span><span id="pill3">—</span><span style="color:#a5b4fc;font-size:0.66rem">/180</span></div>
+    <div class="score-pill grand"><span class="label">Total&nbsp;</span><span id="pillTotal">—</span><span style="font-size:0.68rem;color:#0f766e">/720</span></div>
+  </div>
+
+  <div class="legend">
+    <strong>Key:</strong>
+    <div class="leg-item"><span class="leg-badge leg-blank">Blank</span> ✓ Correct (+4)</div>
+    <div class="leg-item"><span class="leg-badge leg-w">W</span> ✗ Wrong (−5)</div>
+    <div class="leg-item"><span class="leg-badge leg-l">L</span> ○ Unattempted (−4)</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="q-col">Q</th><th>Physics</th>
+          <th class="q-col">Q</th><th>Chemistry</th>
+          <th class="q-col">Q</th><th>Botany</th>
+          <th class="q-col">Q</th><th>Zoology</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2" style="color:var(--muted);font-size:0.7rem;text-transform:uppercase;text-align:center">Total</td>
+          <td></td><td id="foot1">—</td>
+          <td></td><td id="foot2">—</td>
+          <td></td><td id="foot3">—</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="summary">
+    <h2>Summary</h2>
+    <div class="summary-grid">
+      <div class="sum-card"><div class="sec-label">Physics</div><div class="sec-score" id="sum0">—</div><div class="sec-out">/ 180</div><div class="sec-breakdown" id="breakdown0"></div></div>
+      <div class="sum-card"><div class="sec-label">Chemistry</div><div class="sec-score" id="sum1">—</div><div class="sec-out">/ 180</div><div class="sec-breakdown" id="breakdown1"></div></div>
+      <div class="sum-card"><div class="sec-label">Botany</div><div class="sec-score" id="sum2">—</div><div class="sec-out">/ 180</div><div class="sec-breakdown" id="breakdown2"></div></div>
+      <div class="sum-card"><div class="sec-label">Zoology</div><div class="sec-score" id="sum3">—</div><div class="sec-out">/ 180</div><div class="sec-breakdown" id="breakdown3"></div></div>
+    </div>
+    <div class="grand-card">
+      <div>
+        <div class="gl">Grand Total</div>
+        <div class="go" id="grandOut">— / 720</div>
+        <div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" id="grandBar" style="width:0%"></div></div></div>
+      </div>
+      <div class="gv" id="grandVal">—</div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="resetAll()">↺ Reset</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// API key is stored securely on the server (Vercel env var)
+const ROWS=45, COLS=4, OFFSETS=[0,45,90,135];
+const data=Array.from({length:ROWS},()=>Array(COLS).fill(''));
+let omrB64=null, keyB64=null, omrMime='image/jpeg', keyMime='image/jpeg';
+
+function buildTable(){
+  const tbody=document.getElementById('tableBody');
+  for(let r=0;r<ROWS;r++){
+    const tr=document.createElement('tr');
+    for(let c=0;c<COLS;c++){
+      const tdQ=document.createElement('td');
+      tdQ.className='q-col';
+      tdQ.textContent=OFFSETS[c]+r+1;
+      tr.appendChild(tdQ);
+      const tdI=document.createElement('td');
+      const inp=document.createElement('input');
+      inp.type='text'; inp.className='cell blank'; inp.maxLength=1;
+      inp.autocomplete='off'; inp.spellcheck=false;
+      inp.dataset.row=r; inp.dataset.col=c;
+      inp.addEventListener('input',onInput);
+      inp.addEventListener('keydown',onKeyDown);
+      tdI.appendChild(inp); tr.appendChild(tdI);
+    }
+    tbody.appendChild(tr);
+  }
+}
+
+function handleFile(type, input){
+  const file=input.files[0]; if(!file)return;
+  const mime=file.type||'image/jpeg';
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const b64=e.target.result.split(',')[1];
+    if(type==='omr'){
+      omrB64=b64; omrMime=mime;
+      document.getElementById('omrBox').classList.add('has-file');
+      document.getElementById('omrSub').textContent='✓ '+file.name;
+      const p=document.getElementById('omrPreview'); p.src=e.target.result; p.style.display='block';
+    } else {
+      keyB64=b64; keyMime=mime;
+      document.getElementById('keyBox').classList.add('has-file');
+      document.getElementById('keySub').textContent='✓ '+file.name;
+      const p=document.getElementById('keyPreview'); p.src=e.target.result; p.style.display='block';
+    }
+    checkReady();
+  };
+  reader.readAsDataURL(file);
+}
+
+function checkReady(){
+  const btn=document.getElementById('analyzeBtn');
+  if(omrB64&&keyB64){ btn.disabled=false; btn.textContent='🔍 Analyze OMR & Calculate Marks'; }
+  else if(omrB64){ btn.disabled=true; btn.textContent='Now upload Answer Key...'; }
+  else if(keyB64){ btn.disabled=true; btn.textContent='Now upload OMR Sheet...'; }
+}
+
+async function analyze(){
+  const btn=document.getElementById('analyzeBtn');
+  const status=document.getElementById('statusBox');
+  btn.disabled=true; btn.textContent='Analyzing...';
+  status.className='status-box running';
+  status.innerHTML='<div class="spinner"></div> AI is reading your OMR sheet and comparing with answer key...';
+
+  const prompt=`You are an expert NEET OMR checker. I am giving you two images:
+Image 1: A scanned NEET OMR answer sheet (student's filled bubbles)
+Image 2: The official answer key
+
+STEP 1 - Read the OMR sheet very carefully:
+- NEET OMR has 4 options per question: A, B, C, D
+- A filled/darkened bubble = student's chosen answer
+- An empty bubble = not chosen
+- Read each question one by one from top to bottom
+- Note which bubble (A/B/C/D) is filled for each question
+- If no bubble is filled, mark as unattempted
+
+STEP 2 - Read the answer key:
+- The answer key shows the correct answer (A/B/C/D) for each question
+- Read the correct answer for each question carefully
+
+STEP 3 - Compare:
+- For each question, compare student's filled bubble vs answer key
+- If they MATCH → "" (correct)
+- If student filled a bubble but it does NOT match → "W" (wrong)
+- If student filled NO bubble → "L" (unattempted)
+
+NEET question layout:
+- Physics: Q1 to Q45
+- Chemistry: Q46 to Q90
+- Botany: Q91 to Q135
+- Zoology: Q136 to Q180
+
+Be very precise. Double-check Q1 especially — make sure you are reading the FIRST row of the OMR correctly.
+
+IMPORTANT: Reply with ONLY the JSON object, nothing else. Start with { and end with }.
+{"physics":["","W","L",...],"chemistry":["","W","L",...],"botany":["","W","L",...],"zoology":["","W","L",...]}
+Each array must have exactly 45 elements. Values must only be "", "W", or "L".`;
+
+  try{
+    const headers={
+      'Content-Type':'application/json'
+    };
+
+    // STEP 1: Read student's OMR answers
+    status.innerHTML='<div class="spinner"></div> Step 1/3: Reading student OMR bubbles...';
+    const omrResp=await fetch('/api/analyze',{
+      method:'POST', headers,
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens:2000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:omrMime,data:omrB64}},
+          {type:'text',text:`This is a NEET OMR answer sheet. Read every filled bubble carefully.
+The OMR has 180 questions total split into 4 sections:
+- Physics: Q1–Q45
+- Chemistry: Q46–Q90  
+- Botany: Q91–Q135
+- Zoology: Q136–Q180
+
+For each question, tell me which option the student filled: A, B, C, D, or X if unattempted.
+Start from Q1 and go to Q180 in order.
+
+Reply ONLY with a JSON array of 180 values like:
+["A","B","X","C","D","A",...]
+Each value is the student's answer (A/B/C/D) or "X" if not attempted. No explanation, just the JSON array.`}
+        ]}]
+      })
+    });
+    if(!omrResp.ok){const e=await omrResp.json();throw new Error(e.error?.message||'OMR read failed');}
+    const omrData=await omrResp.json();
+    let omrRaw=omrData.content.filter(x=>x.type==='text').map(x=>x.text).join('').replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+    const omrMatch=omrRaw.match(/\[[\s\S]*\]/);
+    if(!omrMatch)throw new Error('Could not read OMR. Response: '+omrRaw.substring(0,200));
+    const studentAnswers=JSON.parse(omrMatch[0]);
+
+    // STEP 2: Read answer key
+    status.innerHTML='<div class="spinner"></div> Step 2/3: Reading answer key...';
+    const keyResp=await fetch('/api/analyze',{
+      method:'POST', headers,
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens:2000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:keyMime,data:keyB64}},
+          {type:'text',text:`This is a NEET answer key. Read the correct answer for each question.
+Questions are numbered 1 to 180:
+- Physics: Q1–Q45
+- Chemistry: Q46–Q90
+- Botany: Q91–Q135
+- Zoology: Q136–Q180
+
+Reply ONLY with a JSON array of 180 correct answers like:
+["A","C","B","D","A",...]
+Each value is the correct answer (A/B/C/D). No explanation, just the JSON array.`}
+        ]}]
+      })
+    });
+    if(!keyResp.ok){const e=await keyResp.json();throw new Error(e.error?.message||'Key read failed');}
+    const keyData=await keyResp.json();
+    let keyRaw=keyData.content.filter(x=>x.type==='text').map(x=>x.text).join('').replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+    const keyMatch=keyRaw.match(/\[[\s\S]*\]/);
+    if(!keyMatch)throw new Error('Could not read answer key. Response: '+keyRaw.substring(0,200));
+    const correctAnswers=JSON.parse(keyMatch[0]);
+
+    // STEP 3: Compare
+    status.innerHTML='<div class="spinner"></div> Step 3/3: Comparing and calculating marks...';
+    const result={physics:[],chemistry:[],botany:[],zoology:[]};
+    const sections=['physics','chemistry','botany','zoology'];
+    for(let i=0;i<180;i++){
+      const sec=sections[Math.floor(i/45)];
+      const student=(studentAnswers[i]||'X').toUpperCase();
+      const correct=(correctAnswers[i]||'A').toUpperCase();
+      let val='';
+      if(student==='X'||student==='')val='L';
+      else if(student===correct)val='';
+      else val='W';
+      result[sec].push(val);
+    }
+
+    const keys=['physics','chemistry','botany','zoology'];
+    keys.forEach((k,c)=>{
+      const arr=result[k]||[];
+      for(let r=0;r<ROWS;r++){
+        const val=(arr[r]||'').toString().toUpperCase();
+        data[r][c]=val;
+        const inp=document.querySelectorAll('input.cell')[r*COLS+c];
+        if(inp){ inp.value=val; inp.classList.remove('blank','wrong','lost','invalid'); inp.classList.add(getState(val)); }
+      }
+    });
+    recalc();
+    // show detected answers summary
+    let debugHtml='✅ Done! Check table below. <span style="font-size:0.75rem;color:#065f46">You can click any cell to manually correct AI mistakes.</span>';
+    status.className='status-box done';
+    status.innerHTML=debugHtml;
+    btn.textContent='🔄 Re-analyze'; btn.disabled=false;
+  } catch(err){
+    status.className='status-box error';
+    status.innerHTML='❌ Error: '+err.message+'. Please check image quality and try again.';
+    btn.textContent='🔍 Try Again'; btn.disabled=false;
+  }
+}
+
+function getState(val){
+  if(val===''||val==null)return'blank';
+  if(val==='W')return'wrong';
+  if(val==='L')return'lost';
+  return'invalid';
+}
+
+function onInput(e){
+  const inp=e.target;
+  const r=+inp.dataset.row, c=+inp.dataset.col;
+  const v=inp.value.toUpperCase(); inp.value=v;
+  data[r][c]=v;
+  inp.classList.remove('blank','wrong','lost','invalid');
+  inp.classList.add(getState(v));
+  recalc();
+}
+
+function onKeyDown(e){
+  const inp=e.target;
+  const r=+inp.dataset.row, c=+inp.dataset.col;
+  if(e.key==='Enter'||e.key==='ArrowDown'){e.preventDefault();moveFocus(r+1,c);}
+  else if(e.key==='ArrowUp'){e.preventDefault();moveFocus(r-1,c);}
+  else if(e.key==='ArrowRight'&&inp.selectionStart===inp.value.length){e.preventDefault();moveFocus(r,c+1);}
+  else if(e.key==='ArrowLeft'&&inp.selectionStart===0){e.preventDefault();moveFocus(r,c-1);}
+}
+
+function moveFocus(r,c){
+  if(r<0||r>=ROWS||c<0||c>=COLS)return;
+  const t=document.querySelectorAll('input.cell')[r*COLS+c];
+  if(t){t.focus();t.select();}
+}
+
+function colStats(c){
+  let correct=0,wrong=0,unattempted=0;
+  for(let r=0;r<ROWS;r++){
+    const s=getState(data[r][c]);
+    if(s==='blank')correct++;
+    else if(s==='wrong')wrong++;
+    else if(s==='lost')unattempted++;
+  }
+  return{correct,wrong,unattempted,score:180-(wrong*5)-(unattempted*4)};
+}
+
+function recalc(){
+  let grand=0;
+  for(let c=0;c<COLS;c++){
+    const{correct,wrong,unattempted,score}=colStats(c);
+    grand+=score;
+    document.getElementById('pill'+c).textContent=score;
+    document.getElementById('sum'+c).textContent=score;
+    if(c>0){const f=document.getElementById('foot'+c);if(f)f.innerHTML=score+'<span class="score-out"> /180</span>';}
+    const bEl=document.getElementById('breakdown'+c);
+    if(bEl)bEl.innerHTML=
+      '<span style="color:var(--success)">✓ '+correct+'</span> '+
+      '<span style="color:var(--danger)">W '+wrong+'</span> '+
+      '<span style="color:var(--warn)">L '+unattempted+'</span>';
+  }
+  // fix foot0
+  const f0=document.querySelector('tfoot td:nth-child(2)');
+  if(f0)f0.innerHTML=colStats(0).score+'<span class="score-out"> /180</span>';
+  document.getElementById('pillTotal').textContent=grand;
+  document.getElementById('grandVal').textContent=grand;
+  document.getElementById('grandOut').textContent=grand+' / 720';
+  document.getElementById('grandBar').style.width=Math.max(0,(grand/720)*100)+'%';
+}
+
+function resetAll(){
+  if(!confirm('Reset everything?'))return;
+  omrB64=null; keyB64=null;
+  ['omrBox','keyBox'].forEach(id=>document.getElementById(id).classList.remove('has-file'));
+  document.getElementById('omrSub').textContent='Click to upload scanned OMR';
+  document.getElementById('keySub').textContent='Click to upload answer key';
+  document.getElementById('omrPreview').style.display='none';
+  document.getElementById('keyPreview').style.display='none';
+  document.getElementById('omrInput').value='';
+  document.getElementById('keyInput').value='';
+  document.getElementById('analyzeBtn').disabled=true;
+  document.getElementById('analyzeBtn').textContent='Upload both images to analyze';
+  document.getElementById('statusBox').className='status-box';
+  document.getElementById('statusBox').textContent='⏳ Waiting for images...';
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)data[r][c]='';
+  document.querySelectorAll('input.cell').forEach(inp=>{inp.value='';inp.className='cell blank';});
+  ['pill0','pill1','pill2','pill3','pillTotal','grandVal'].forEach(id=>document.getElementById(id).textContent='—');
+  document.getElementById('grandOut').textContent='— / 720';
+  document.getElementById('grandBar').style.width='0%';
+  [0,1,2,3].forEach(c=>{
+    const s=document.getElementById('sum'+c); if(s)s.textContent='—';
+    const b=document.getElementById('breakdown'+c); if(b)b.innerHTML='';
+  });
+}
+
+buildTable();
+</script>
+</body>
+</html>
